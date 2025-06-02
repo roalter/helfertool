@@ -1,0 +1,33 @@
+language:
+     default: "de"
+     badges: "de"
+     country: "DE"
+
+mail:
+    send:
+        host: smtp-host
+        port: 587
+        user: user
+        password: password
+        tls: false
+        starttls: true
+    sender_address: "Helfer Tool <helfertool>"
+
+security:
+          debug: False
+          allowed_hosts:
+               - "localhost"
+
+features:
+     newsletter: false
+     badges: true
+     gifts: false
+     prerequisites: false
+     inventroy: false
+     corona: false
+
+customization:
+     urls:
+        imprint: /www/impressum/
+        privacy: /www/datenschutz/
+     contact_address: "foo@bar.com"

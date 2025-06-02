@@ -1,0 +1,116 @@
+networks:
+   default:
+   internal:
+
+x-tool: &backend
+  restart: unless-stopped
+  env_file: .env
+  environment:
+    - REDIS_URI=${REDIS_URI}
+    - RABBITMQ_URI=${RABBITMQ_URI}
+    - DATABASE_URI=${DATABASE_URI}
+    - DJANGO_ALLOWED_HOSTS=${DJANGO_ALLOWED_HOSTS}
+  image: helfertool-ng:latest
+  build:
+    context: ..
+    dockerfile: Dockerfile
+  networks:
+    - internal
+  depends_on:
+    - database
+    - redis
+    - rabbitmq
+
+services:
+   helfertool:
+     <<: *backend
+     command: start
+     ports:
+       - "80:8193"
+     networks:
+       - internal
+       - default
+     volumes:
+       - ./config:/config
+       - ./data:/data
+       - ./logs/tool:/log
+       - ./run:/helfertool/run
+      
+   celery-worker:
+     <<: *backend
+     command: celery-worker
+     environment:
+       - CELERY_QUEUES=celery
+       - CELERY_CONCURRENCY=4
+     ports:
+       - "9010:9010"
+     healthcheck:
+       test: ["CMD-SHELL", "celery-liveness"]
+       interval: 30s
+       timeout: 30s
+       retries: 5
+   
+   celery-beat:
+      <<: *backend
+      command: celery-beat
+
+   redis:
+     image: redis:7-alpine
+     restart: always
+     networks:
+       - internal
+     volumes:
+       - redis-static:/data/
+     healthcheck:
+       test: [ "CMD", "redis-cli", "--raw", "incr", "ping" ]
+
+   database:
+      image: postgres:15-alpine
+      environment:
+         POSTGRES_USER: ${POSTGRES_USER}
+         POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+         POSTGRES_DB: ${POSTGRES_DB}
+         POSTGRES_INITDB_ARGS: "--auth-host=md5 --auth-local=md5"
+         PGDATA: /data/postgres
+      networks:
+         - internal
+      volumes:
+         - ./db:/data/postgres
+         - ./create-db.sql:/docker-entrypoint-initdb.d/create_database.sql
+      restart: unless-stopped
+      healthcheck:
+        test: ["CMD-SHELL", "pg_isready"]
+        interval: 60s
+        timeout: 10s
+        retries: 5
+
+   rabbitmq:
+      image: rabbitmq:3-management-alpine
+      restart: unless-stopped
+      environment:
+        - RABBITMQ_DEFAULT_USER=${RABBITMQ_DEFAULT_USER}
+        - RABBITMQ_DEFAULT_PASS=${RABBITMQ_DEFAULT_PASS}
+        - RABBITMQ_DEFAULT_VHOST=${RABBITMQ_DEFAULT_VHOST}
+      ports:
+        - "5672:5672"
+        - "15672:15672"
+      networks:
+         - internal
+      volumes:
+         - ./rabbitmq_config.conf:/etc/rabbitmq/rabbitmq.conf
+         - ./zmq:/var/lib/rabbitmq/
+         - ./logs/rabbit:/var/log/rabbitmq
+
+   static:
+     image: nginx:latest
+     restart: unless-stopped
+     networks:
+       - default
+     volumes:
+      - ./www:/usr/share/nginx/html/www:ro
+      - ./config/nginx.conf:/etc/nginx.conf:ro
+     labels:
+      traefik.enable: false
+
+volumes:
+  redis-static:
