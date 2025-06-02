@@ -6,8 +6,13 @@ set -o pipefail
 set -o nounset
 
 cd "$LOCATION"
+
 python3 ./manage.py collectstatic --noinput --clear
 python3 ./manage.py migrate
 python3 ./manage.py compress
+python3 ./manage.py createcachetable
+
+find ./static -type f -exec chmod 644 {} \;
+find ./static -type d -exec chmod 755 {} \;
 
 

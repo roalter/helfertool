@@ -8,6 +8,7 @@ django-celery-results~=2.6.0
 # packages pinned to compatible version
 django-auth-ldap~=5.3.0
 django-axes~=8.1.0
+django-celery-beat~=2.8
 django-bootstrap5~=25.3
 django-compressor~=4.6.0
 django-ical~=1.9.2
