@@ -3,3 +3,5 @@ mysqlclient~=2.2.7
 psycopg[binary]~=3.3.2
 psycopg-c~=3.3.2; platform_system != "Windows"
 uwsgitop~=0.12
+uvicorn
+gunicorn
