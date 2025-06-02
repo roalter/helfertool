@@ -9,6 +9,7 @@ x-tool: &backend
     - REDIS_URI=${REDIS_URI}
     - RABBITMQ_URI=${RABBITMQ_URI}
     - DATABASE_URI=${DATABASE_URI}
+    - DEBUG=1
     - DJANGO_ALLOWED_HOSTS=${DJANGO_ALLOWED_HOSTS}
   image: helfertool-ng:latest
   build:
@@ -112,6 +113,8 @@ services:
      networks:
        - default
        - internal
+     depends_on:
+       - helfertool
      volumes:
        - ./static:/static:ro
        - ./www:/www:ro

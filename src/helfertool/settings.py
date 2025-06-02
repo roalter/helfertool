@@ -179,6 +179,7 @@ else:
     EMAIL_HOST_USER = None
     EMAIL_HOST_PASSWORD = None
     EMAIL_USE_TLS = False
+    RECEIVE_EMAIL_HOST = None
 
 # sender of all mails (because of SPF, DKIM, DMARC)
 # the display name defaults to the mail address
@@ -347,9 +348,9 @@ if OIDC_CUSTOM_PROVIDER_NAME is not None:
     AXES_WHITELIST_CALLABLE = "helfertool.oidc.axes_whitelist"
 
 # security
-DEBUG = dict_get(config, False, "security", "debug")
-SECRET_KEY = dict_get(config, "CHANGEME", "security", "secret")
-ALLOWED_HOSTS = dict_get(config, [], "security", "allowed_hosts") or []  # empty list in config is None, but we need []
+DEBUG = os.environ.get("DEBUG", "no").lower() in ["yes", "1", "true", "on"]
+SECRET_KEY = os.environ.get("SECRET_KEY", "CHANGEME")
+ALLOWED_HOSTS = os.environ.get("DJANGO_ALLOWED_HOSTS", "").split()
 
 CAPTCHAS_NEWSLETTER = dict_get(config, False, "security", "captchas", "newsletter")
 CAPTCHAS_REGISTRATION = dict_get(config, False, "security", "captchas", "registration")
@@ -595,6 +596,7 @@ INSTALLED_APPS = (
     "django.contrib.messages",
     "django.contrib.staticfiles",
     "mozilla_django_oidc",
+    "django_celery_beat",
     "axes",
     "django_bootstrap5",
     "django_icons",
