@@ -3,6 +3,7 @@ Django settings for Helfertool.
 """
 
 import os
+import re
 import socket
 import sys
 import yaml
@@ -80,35 +81,48 @@ else:
 USE_I18N = True
 USE_TZ = True
 
-DEFAULT_COUNTRY = dict_get(config, "DE", "language", "country")
+DEFAULT_COUNTRY = os.environ.get("DEFAULT_COUNTRY", "de")
 
 # database
-DATABASES = {
-    "default": {
-        "ENGINE": "django.db.backends." + dict_get(config, "sqlite3", "database", "backend"),
-        "NAME": dict_get(config, "db.sqlite3", "database", "name"),
-        "USER": dict_get(config, None, "database", "user"),
-        "PASSWORD": dict_get(config, None, "database", "password"),
-        "HOST": dict_get(config, None, "database", "host"),
-        "PORT": dict_get(config, None, "database", "port"),
-        "OPTIONS": dict_get(config, {}, "database", "options"),
-    }
-}
+def generate_database(connection_string: str):
+    log = logging.getLogger(__file__)
+    _c = re.compile(
+        r"^(?P<engine>[\w.-]+)://(|(?P<user>[\w.-]+)(|:(?P<secret>.+))@)"
+        r"(?P<host>[\w.-]+)(|:(?P<port>\d+))/(?P<database>.+)$"
+    )
+    result = _c.match(connection_string)
+    if not result:
+        log.critical(f"Connection string {connection_string} is invalid.")
+        raise SyntaxError(f"Connection string {connection_string} is invalid.")
 
-# build correct relative path for sqlite (if necessary)
-if "sqlite3" in DATABASES["default"]["ENGINE"]:
-    DATABASES["default"]["NAME"] = build_path(DATABASES["default"]["NAME"], BASE_DIR)
+    def get(field, default=None):
+        value = result.group(field)
+        return default if value is None else value
 
+    engine = get("engine", "sqlite3")
+    if engine.startswith("sqlite"):
+        base = get("host").replace("BASE_DIR", str(BASE_DIR))
+        name = base + "/" + get("database")
+    else:
+        name = get("database")
+
+    return dict(
+        ENGINE="django.db.backends." + engine,
+        NAME=name,
+        USER=get("user"),
+        PASSWORD=get("secret"),
+        HOST=get("host"),
+        PORT=get("port", "5432"),
+    )
+
+
+DATABASES = dict(default=generate_database(os.environ.get("DATABASE_URI", "sqlite3://BASE_DIR/database.sqlite3")))
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 # rabbitmq
-CELERY_BROKER_URL = "amqp://{}:{}@{}:{}/{}".format(
-    dict_get(config, "guest", "rabbitmq", "user"),
-    dict_get(config, "guest", "rabbitmq", "password"),
-    dict_get(config, "localhost", "rabbitmq", "host"),
-    dict_get(config, "5672", "rabbitmq", "port"),
-    dict_get(config, "", "rabbitmq", "vhost"),
-)
+
+CELERY_BROKER_URL = os.environ.get("RABBITMQ_URI", None)
+
 CELERY_RESULT_BACKEND = "django-db"
 CELERY_RESULT_EXTENDED = True
 CELERY_BROKER_POOL_LIMIT = None
@@ -133,80 +147,78 @@ CACHES = {
 }
 
 # mail
-if dict_get(config, None, "mail", "host") is None:
-    # new config format: sending and receiving mails separated
-
+if "MAIL_OUTGOING_SERVER" in os.environ:
     # send
-    EMAIL_HOST = dict_get(config, "localhost", "mail", "send", "host")
-    EMAIL_PORT = dict_get(config, 25, "mail", "send", "port")
-    EMAIL_HOST_USER = dict_get(config, None, "mail", "send", "user")
-    EMAIL_HOST_PASSWORD = dict_get(config, None, "mail", "send", "password")
-    EMAIL_USE_SSL = dict_get(config, False, "mail", "send", "tls")
-    EMAIL_USE_TLS = dict_get(config, False, "mail", "send", "starttls")
+    EMAIL_HOST = os.environ.get("MAIL_OUTGOING_SERVER")
+    EMAIL_PORT = int(os.environ.get("MAIL_OUTGOING_PORT", 25))
+    EMAIL_HOST_USER = os.environ.get("MAIL_OUTGOING_USERNAME", None)
+    EMAIL_HOST_PASSWORD = os.environ.get("MAIL_OUTGOING_PASSWORD", None)
+    EMAIL_USE_SSL = os.environ.get("MAIL_OUTGOING_USE_SSL", "0").lower() in ["1", "yes", "on", "true"]
+    EMAIL_USE_TLS = os.environ.get("MAIL_OUTGOING_USE_TLS", "0").lower() in ["1", "yes", "on", "true"]
 
     if EMAIL_USE_SSL and EMAIL_USE_TLS:
         print("Mail settings for sending invalid: TLS and STARTTLS are mutually exclusive")
         sys.exit(1)
 
     # receive
-    RECEIVE_EMAIL_HOST = dict_get(config, None, "mail", "receive", "host")
-    RECEIVE_EMAIL_PORT = dict_get(config, None, "mail", "receive", "port")
-    RECEIVE_EMAIL_HOST_USER = dict_get(config, None, "mail", "receive", "user")
-    RECEIVE_EMAIL_HOST_PASSWORD = dict_get(config, None, "mail", "receive", "password")
-    RECEIVE_EMAIL_USE_SSL = dict_get(config, False, "mail", "receive", "tls")
-    RECEIVE_EMAIL_USE_TLS = dict_get(config, False, "mail", "receive", "starttls")
+    RECEIVE_EMAIL_HOST = os.environ.get("MAIL_INCOMING_SERVER")
+    RECEIVE_EMAIL_PORT = os.environ.get("MAIL_INCOMING_PORT")
+    RECEIVE_EMAIL_HOST_USER = os.environ.get("MAIL_INCOMING_USERNAME")
+    RECEIVE_EMAIL_HOST_PASSWORD = os.environ.get("MAIL_INCOMING_PASSWORD")
+    RECEIVE_EMAIL_USE_SSL = os.environ.get("MAIL_INCOMING_USE_SSL", "0").lower() in ["1", "yes", "on", "true"]
+    RECEIVE_EMAIL_USE_TLS = os.environ.get("MAIL_INCOMING_USE_TLS", "0").lower() in ["1", "yes", "on", "true"]
 
-    RECEIVE_EMAIL_FOLDER = dict_get(config, "INBOX", "mail", "receive", "folder")
-    RECEIVE_INTERVAL = dict_get(config, 300, "mail", "receive", "interval")
+    RECEIVE_EMAIL_FOLDER = os.environ.get("MAIL_INCOMING_FOLDER", "INBOX")
+    RECEIVE_INTERVAL = int(os.environ.get("MAIL_INCOMING_CHECK_INTERVAL", 300))
 
     if RECEIVE_EMAIL_USE_SSL and RECEIVE_EMAIL_USE_TLS:
         print("Mail settings for receiving invalid: TLS and STARTTLS are mutually exclusive")
         sys.exit(1)
 else:
     # old config format
-    EMAIL_HOST = dict_get(config, "localhost", "mail", "host")
-    EMAIL_PORT = dict_get(config, 25, "mail", "port")
-    EMAIL_HOST_USER = dict_get(config, None, "mail", "user")
-    EMAIL_HOST_PASSWORD = dict_get(config, None, "mail", "password")
-    EMAIL_USE_TLS = dict_get(config, False, "mail", "tls")
+    EMAIL_HOST = None
+    EMAIL_PORT = 25
+    EMAIL_HOST_USER = None
+    EMAIL_HOST_PASSWORD = None
+    EMAIL_USE_TLS = False
 
 # sender of all mails (because of SPF, DKIM, DMARC)
 # the display name defaults to the mail address
-EMAIL_SENDER_ADDRESS = dict_get(config, "helfertool@localhost", "mail", "sender_address")
-EMAIL_SENDER_NAME = dict_get(config, EMAIL_SENDER_ADDRESS, "mail", "sender_name")
+EMAIL_SENDER_ADDRESS = os.environ.get("MAIL_SENDER_ADDRESS",  "helfertool@localhost")
+EMAIL_SENDER_NAME = os.environ.get("MAIL_SENDER_NAME", EMAIL_SENDER_ADDRESS)
 
 SERVER_EMAIL = EMAIL_SENDER_ADDRESS  # for error messages
 
 # forward mails that were not handled automatically to this address
 # the display name defaults to the mail address
-FORWARD_UNHANDLED_ADDRESS = dict_get(config, None, "mail", "forward_unhandled_address")
-FORWARD_UNHANDLED_NAME = dict_get(config, FORWARD_UNHANDLED_ADDRESS, "mail", "forward_unhandled_name")
+FORWARD_UNHANDLED_ADDRESS = os.environ.get("MAIL_FORWARD_UNHANDLED_ADDRESS",  None)
+FORWARD_UNHANDLED_NAME = os.environ.get("MAIL_FORWARD_UNHANDLED_NAME", None)
 
 # newsletter: number of mails sent during one connection and time between
-MAIL_BATCH_SIZE = dict_get(config, 200, "mail", "batch_size")
-MAIL_BATCH_GAP = dict_get(config, 5, "mail", "batch_gap")
+MAIL_BATCH_SIZE = int(os.environ.get("MAIL_BATCH_SIZE", 200))
+MAIL_BATCH_GAP = int(os.environ.get("MAIL_BATCH_GAP", 5))
 
 # authentication
 LOGIN_URL = "/login/"
 LOGIN_REDIRECT_URL = "/manage/account/check/"
 LOGOUT_REDIRECT_URL = "/"
 
-LOCAL_USER_CHAR = dict_get(config, None, "authentication", "local_user_char")
+LOCAL_USER_CHAR = os.environ.get("AUTH_LOCAL_USER_CHAR", None)
 
 # LDAP
-ldap_config = dict_get(config, None, "authentication", "ldap")
-if ldap_config:
+if "AUTH_LDAP_SERVER_URI" in os.environ:
     import django_auth_ldap.config
     import ldap
 
     # server address and authentication
-    AUTH_LDAP_SERVER_URI = dict_get(ldap_config, "ldaps://localhost", "server", "host")
-    AUTH_LDAP_BIND_DN = dict_get(ldap_config, None, "server", "bind_dn")
-    AUTH_LDAP_BIND_PASSWORD = dict_get(ldap_config, None, "server", "bind_password")
+    AUTH_LDAP_SERVER_URI = os.environ.get("AUTH_LDAP_SERVER_URI")
+    AUTH_LDAP_BIND_DN = os.environ.get("AUTH_LDAP_BIND_DN", None)
+    AUTH_LDAP_BIND_PASSWORD = os.environ.get("AUTH_LDAP_BIND_PASSWORD", None)
 
     # user search
-    user_search_base = dict_get(ldap_config, None, "schema", "user_search_base")
-    user_search_filter = dict_get(ldap_config, None, "schema", "user_search_filter")
+    user_search_base = os.environ.get("AUTH_LDAP_SEARCH_BASE", None)
+    user_search_filter = os.environ.get("AUTH_LDAP_SEARCH_FILTER", None)
+
     if user_search_base is not None and user_search_filter is not None:
         AUTH_LDAP_USER_SEARCH = django_auth_ldap.config.LDAPSearch(
             user_search_base,
@@ -214,61 +226,60 @@ if ldap_config:
             user_search_filter,
         )
 
-    AUTH_LDAP_USER_DN_TEMPLATE = dict_get(ldap_config, None, "schema", "user_dn_template")
+    AUTH_LDAP_USER_DN_TEMPLATE = os.enviorn.get("AUTH_LDAP_USER_DN_TEMPLATE", None)
 
     # user schema
     AUTH_LDAP_USER_ATTR_MAP = {
-        "first_name": dict_get(ldap_config, "givenName", "schema", "first_name_attr"),
-        "last_name": dict_get(ldap_config, "sn", "schema", "last_name_attr"),
-        "email": dict_get(ldap_config, "mail", "schema", "email_attr"),
+        "first_name": os.environ.get("AUTH_LDAP_MAP_FIRSTNAME", "givenName"),
+        "last_name": os.environ.get("AUTH_LDAP_MAP_LASTNAME", "sn"),
+        "email": os.envion.get("AUTH_LDAP_MAP_EMAIL", "mail")
     }
 
     # group schema
-    group_type_name = dict_get(ldap_config, "GroupOfNamesType", "schema", "group_type")
+    group_type_name = os.environ.get("AUTH_LDAP_GROUP_TYPE", "GroupOfNamesType")
     AUTH_LDAP_GROUP_TYPE = getattr(django_auth_ldap.config, group_type_name)()
 
     AUTH_LDAP_GROUP_SEARCH = django_auth_ldap.config.LDAPSearch(
-        dict_get(ldap_config, None, "schema", "group_base_dn"),
+        os.environ.get("AUTH_LDAP_GROUP_BASE_DN", None),
         ldap.SCOPE_SUBTREE,  # pylint: disable=E1101
-        "(objectClass={})".format(dict_get(ldap_config, "groupOfNames", "schema", "group_base_dn")),
+        "(objectClass={})".format(os.environ.get("AUTH_LDAP_GROUP_OBJECT", "groupOfNames")),
     )
     AUTH_LDAP_MIRROR_GROUPS = False
 
     # permissions based on groups
     AUTH_LDAP_USER_FLAGS_BY_GROUP = {}
 
-    ldap_group_login = dict_get(ldap_config, None, "groups", "login")
+    ldap_group_login = os.environ.get("AUTH_LDAP_LOGIN_BY_GROUPS", None)
     if ldap_group_login:
         AUTH_LDAP_USER_FLAGS_BY_GROUP["is_active"] = ldap_group_login
 
-    ldap_group_admin = dict_get(ldap_config, None, "groups", "admin")
+    ldap_group_admin = os.environ.get("AUTH_LDAP_LOGIN_BY_ADMINS", None)
     if ldap_group_admin:
         AUTH_LDAP_USER_FLAGS_BY_GROUP["is_staff"] = ldap_group_admin
         AUTH_LDAP_USER_FLAGS_BY_GROUP["is_superuser"] = ldap_group_admin
 
 # OpenID Connect
-oidc_config = dict_get(config, None, "authentication", "oidc")
 OIDC_CUSTOM_PROVIDER_NAME = None  # used to check if enabled or not
 OIDC_CUSTOM_LOGOUT_ENDPOINT = None
 OIDC_CUSTOM_LOGOUT_REDIRECT_PARAMTER = None
-if oidc_config:
+if "AUTH_OIDC_PROVIDER" in os.environ:
     # name for identity provider displayed on login page (custom paremeter, not from lib)
-    OIDC_CUSTOM_PROVIDER_NAME = dict_get(oidc_config, "OpenID Connect", "provider_name")
+    OIDC_CUSTOM_PROVIDER_NAME = os.environ.get("AUTH_OIDC_PROVIDER", "OpenID Connect")
 
     # provider
     OIDC_RP_SIGN_ALGO = "RS256"
-    OIDC_OP_JWKS_ENDPOINT = dict_get(oidc_config, None, "provider", "jwks_uri")
+    OIDC_OP_JWKS_ENDPOINT = os.environ.get("AUTH_OIDC_JWKS_URL", None)
 
-    OIDC_RP_CLIENT_ID = dict_get(oidc_config, None, "provider", "client_id")
-    OIDC_RP_CLIENT_SECRET = dict_get(oidc_config, None, "provider", "client_secret")
+    OIDC_RP_CLIENT_ID = os.environ.get("AUTH_OIDC_CLIENT_ID", None)
+    OIDC_RP_CLIENT_SECRET = os.environ.get("AUTH_OIDC_CLIENT_SECRET", None)
 
-    OIDC_OP_AUTHORIZATION_ENDPOINT = dict_get(oidc_config, None, "provider", "authorization_endpoint")
-    OIDC_OP_TOKEN_ENDPOINT = dict_get(oidc_config, None, "provider", "token_endpoint")
-    OIDC_OP_USER_ENDPOINT = dict_get(oidc_config, None, "provider", "user_endpoint")
+    OIDC_OP_AUTHORIZATION_ENDPOINT = os.environ.get("AUTH_OIDC_AUTHORIZATION_ENDPOINT", None)
+    OIDC_OP_TOKEN_ENDPOINT = os.environ.get("AUTH_OIDC_TOKEN_ENDPOINT", None)
+    OIDC_OP_USER_ENDPOINT = os.environ.get("AUTH_OIDC_USER_ENDPOINT", None)
 
-    OIDC_RP_SCOPES = dict_get(oidc_config, "openid email profile", "provider", "scopes")
+    OIDC_RP_SCOPES = os.environ.get("AUTH_OIDC_SCOPES", "openid email profile")
 
-    oidc_renew_check_interval = dict_get(oidc_config, 0, "provider", "renew_check_interval")
+    oidc_renew_check_interval = int(os.environ.get("AUTH_OIDC_RENEW_INTERVAL", 0))
     if oidc_renew_check_interval > 0:
         OIDC_RENEW_ID_TOKEN_EXPIRY_SECONDS = oidc_renew_check_interval * 60
 
@@ -287,8 +298,8 @@ if oidc_config:
         OIDC_OP_LOGOUT_URL_METHOD = "helfertool.oidc.custom_oidc_logout"
 
     # claims for is_active and is_admin
-    OIDC_CUSTOM_CLAIM_LOGIN = dict_get(oidc_config, None, "claims", "login")
-    OIDC_CUSTOM_CLAIM_ADMIN = dict_get(oidc_config, None, "claims", "admin")
+    OIDC_CUSTOM_CLAIM_LOGIN = os.environ.get("AUTH_OIDC_CLAIMS_USER")
+    OIDC_CUSTOM_CLAIM_ADMIN = os.environ.get("UATH_OIDC_CLAIMS_ADMIN")
 
 # django auth backends
 AUTHENTICATION_BACKENDS = [
