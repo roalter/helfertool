@@ -1,0 +1,10 @@
+#!/bin/bash
+SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
+LOCATION=$(dirname $SCRIPT_DIR)
+set -o errexit
+set -o pipefail
+set -o nounset
+
+cd "$LOCATION"
+bash "$SCRIPT_DIR/django-bootstrap"
+bash "$SCRIPT_DIR/manage" runserver 0.0.0.0:${BACKEND_PORT:-8193} $*

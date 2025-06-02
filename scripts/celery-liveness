@@ -1,0 +1,9 @@
+#!/bin/bash
+SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
+LOCATION=$(dirname $SCRIPT_DIR)
+set -o errexit
+set -o nounset
+
+cd "$LOCATION"
+echo celery -A "${DJANGO_APP:-helfertool}" inspect ping -d "celery@$HOSTNAME"
+exec celery -A "${DJANGO_APP:-helfertool}" inspect ping -d "celery@$HOSTNAME"
