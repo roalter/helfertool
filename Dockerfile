@@ -34,7 +34,7 @@ ENV PATH "/helfertool/scripts/:$PATH"
 
 USER root
 
-RUN apt-get update -qqy && apt-get install -qqy python3 libldap-2.5-0 ca-certificates nano netcat python-is-python3 && rm -fR /var/cache/apt
+RUN apt-get update -qqy && apt-get install -qqy python3 libldap-2.5-0 ca-certificates nano netcat python-is-python3 libmagic1 && rm -fR /var/cache/apt
 
 COPY --from=builder /root/env/ /usr/local/
 

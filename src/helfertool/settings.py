@@ -85,14 +85,12 @@ DEFAULT_COUNTRY = os.environ.get("DEFAULT_COUNTRY", "de")
 
 # database
 def generate_database(connection_string: str):
-    log = logging.getLogger(__file__)
     _c = re.compile(
         r"^(?P<engine>[\w.-]+)://(|(?P<user>[\w.-]+)(|:(?P<secret>.+))@)"
         r"(?P<host>[\w.-]+)(|:(?P<port>\d+))/(?P<database>.+)$"
     )
     result = _c.match(connection_string)
     if not result:
-        log.critical(f"Connection string {connection_string} is invalid.")
         raise SyntaxError(f"Connection string {connection_string} is invalid.")
 
     def get(field, default=None):
@@ -205,6 +203,12 @@ LOGOUT_REDIRECT_URL = "/"
 
 LOCAL_USER_CHAR = os.environ.get("AUTH_LOCAL_USER_CHAR", None)
 
+# django auth backends
+AUTHENTICATION_BACKENDS = [
+    "axes.backends.AxesBackend",
+]
+
+
 # LDAP
 if "AUTH_LDAP_SERVER_URI" in os.environ:
     import django_auth_ldap.config
@@ -258,10 +262,15 @@ if "AUTH_LDAP_SERVER_URI" in os.environ:
         AUTH_LDAP_USER_FLAGS_BY_GROUP["is_staff"] = ldap_group_admin
         AUTH_LDAP_USER_FLAGS_BY_GROUP["is_superuser"] = ldap_group_admin
 
+    AUTHENTICATION_BACKENDS.append("django_auth_ldap.backend.LDAPBackend")
+
+       
 # OpenID Connect
 OIDC_CUSTOM_PROVIDER_NAME = None  # used to check if enabled or not
 OIDC_CUSTOM_LOGOUT_ENDPOINT = None
 OIDC_CUSTOM_LOGOUT_REDIRECT_PARAMTER = None
+oidc_config = False
+
 if "AUTH_OIDC_PROVIDER" in os.environ:
     # name for identity provider displayed on login page (custom paremeter, not from lib)
     OIDC_CUSTOM_PROVIDER_NAME = os.environ.get("AUTH_OIDC_PROVIDER", "OpenID Connect")
@@ -301,16 +310,8 @@ if "AUTH_OIDC_PROVIDER" in os.environ:
     OIDC_CUSTOM_CLAIM_LOGIN = os.environ.get("AUTH_OIDC_CLAIMS_USER")
     OIDC_CUSTOM_CLAIM_ADMIN = os.environ.get("UATH_OIDC_CLAIMS_ADMIN")
 
-# django auth backends
-AUTHENTICATION_BACKENDS = [
-    "axes.backends.AxesBackend",
-]
-
-if ldap_config:
-    AUTHENTICATION_BACKENDS.append("django_auth_ldap.backend.LDAPBackend")
-
-if oidc_config:
     AUTHENTICATION_BACKENDS.append("helfertool.oidc.CustomOIDCAuthenticationBackend")
+    oidc_config = True
 
 AUTHENTICATION_BACKENDS.append("django.contrib.auth.backends.ModelBackend")
 
@@ -378,6 +379,7 @@ CSRF_COOKIE_SAMESITE = "Strict"
 SESSION_EXPIRE_AT_BROWSER_CLOSE = True
 SESSION_COOKIE_HTTPONLY = True
 # OIDC with foreign TLDs is blocked by SAMESITE=Strict, so make this configurable
+
 if oidc_config and dict_get(oidc_config, False, "provider", "thirdparty_domain"):
     SESSION_COOKIE_SAMESITE = "Lax"
 else:
