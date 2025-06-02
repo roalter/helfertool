@@ -1,0 +1,11 @@
+#!/bin/bash
+SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
+LOCATION=$(dirname $SCRIPT_DIR)
+set -o errexit
+set -o pipefail
+set -o nounset
+
+cd "$LOCATION"
+python3 ./manage.py collectstatic --noinput --clear
+python3 ./manage.py migrate
+

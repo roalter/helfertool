@@ -1,0 +1,58 @@
+#!/bin/bash
+set -o errexit
+set -o pipefail
+
+postgres_ready() {
+python3 << END
+import sys
+
+try:
+   import psycopg2 as driver
+except ImportError:
+   import psycopg as driver
+
+import re
+
+def generate_database(connection_string):
+    _c = re.compile(
+        r"^(?P<engine>[\w.-]+)://(|(?P<user>[\w.-]+)(|:(?P<secret>.+))@)"
+        r"(?P<host>[\w.-]+)(|:(?P<port>\d+))/(?P<database>.+)$"
+    )
+    result = _c.match(connection_string)
+    if not result:
+        raise SyntaxError(f"Connection string {connection_string} is invalid.")
+
+    def get(field, default=None):
+        value = result.group(field)
+        return default if value is None else value
+
+    name = get("database")
+    return dict(
+        dbname=name,
+        user=get("user"),
+        password=get("secret"),
+        host=get("host"),
+        port=get("port", "5432")
+    )
+
+try:
+    driver.connect(**generate_database("${DATABASE_URI}"))
+except driver.OperationalError as e:
+    print(e)
+    sys.exit(-1)
+sys.exit(0)
+
+END
+}
+
+if [[ -z "${DATABASE_URI}" ]]; then
+    echo "No database given. Bypassing."
+else
+   until postgres_ready; do
+     >&2 echo 'Waiting for PostgreSQL to become available...'
+     sleep 1
+   done
+   >&2 echo 'PostgreSQL is available'
+fi
+
+exec "$@"

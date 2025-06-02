@@ -1,0 +1,15 @@
+#!/bin/bash
+SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
+LOCATION=$(dirname $SCRIPT_DIR)
+set -o errexit
+set -o nounset
+
+cd /tmp
+rm -f /celerybeat.pid
+rm -f ./celerybeat.pid
+rm -f /celerybeat-schedule
+rm -f ./celerybeat-schedule
+
+echo celery --workdir "$LOCATION" -A "${DJANGO_APP:-helfertool}" beat -l "${CELERY_LOGLEVEL:-INFO}" -s /tmp/celerybeat-schedule -S django
+exec celery --workdir "$LOCATION" -A "${DJANGO_APP:-helfertool}" beat -l "${CELERY_LOGLEVEL:-INFO}" -s /tmp/celerybeat-schedule -S django
+

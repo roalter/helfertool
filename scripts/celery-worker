@@ -1,0 +1,21 @@
+#!/bin/bash
+SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
+LOCATION=$(dirname $SCRIPT_DIR)
+set -o errexit
+set -o nounset
+
+if [ ! -z ${CELERY_CONCURRENCY:-} ] ; then
+     CELERY_CONCURRENCY="--concurrency ${CELERY_CONCURRENCY}"
+fi
+if [ ! -z ${CELERY_POOL:-} ] ; then
+     CELERY_POOL="--pool ${CELERY_POOL}"
+fi
+if [ ! -z ${CELERY_PREFETCH_MULT:-} ] ; then
+     CELERY_PREFETCH_MULT="--prefetch-multiplier ${CELERY_PREFETCH_MULT}"
+fi
+
+cd "$LOCATION"
+echo celery --workdir "$LOCATION" -A helfertool worker -O "${CELERY_OPTIMIZATION:-fair}" \
+      -l "${CELERY_LOGLEVEL:-INFO}" -Q "${CELERY_QUEUES:-celery}" ${CELERY_CONCURRENCY:-} ${CELERY_POOL:-} ${CELERY_PREFETCH_MULT:-} $*
+exec celery --workdir "$LOCATION" -A helfertool worker -O "${CELERY_OPTIMIZATION:-fair}" \
+      -l "${CELERY_LOGLEVEL:-INFO}" -Q "${CELERY_QUEUES:-celery}" ${CELERY_CONCURRENCY:-} ${CELERY_POOL:-} ${CELERY_PREFETCH_MULT:-} $*
