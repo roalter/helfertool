@@ -1,16 +1,16 @@
 // colors that can be changed
 // most of them are bootstrap variables that are overwritten here, some of them are custom
-$primary:       #1ea082;  // bootstrap variable
+$primary: #2b417a;  // bootstrap variable
 $primary-text:  #ffffff;  // custom variable
 
 $body-bg:       #ffffff;  // bootstrap variable
 $body-color:    #212529;  // bootstrap variable (gray-900)
 
 $secondary:     #6c757d;  // bootstrap variable
-$success:       #1a876e;  // bootstrap variable
+$success:       #29871a;  // bootstrap variable
 $info:          $secondary; //bootstrap variable
-$danger:        #d53e54;  // bootstrap variable
-$warning:       $danger;    // bootstrap variable
+$danger:        #c11f3d;  // bootstrap variable
+$warning:       #e36a3c;    // bootstrap variable
 
 // contrast level: 3.0, 4.5 (bootstrap default), or 7.0
 // with the bootstrap default, the buttons have a black text. white text is (imho) better readable

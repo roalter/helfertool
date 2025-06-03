@@ -18,7 +18,7 @@ django-multiselectfield~=0.1.13
 django-simple-captcha~=0.6.2
 django-celery-beat~=2.8
 celery~=5.4.0
-django-celery-results~=2.5.1
+# django-celery-results~=2.5.1
 csscompressor~=0.9.5
 jmespath~=1.0.1
 mozilla-django-oidc~=4.0.1
@@ -28,6 +28,8 @@ python-magic~=0.4.27
 pyyaml~=6.0.2
 reportlab~=4.3.1
 xlsxwriter~=3.2.2
+redis~=6.2
+hiredis~=3.2
 
 # dependencies of dependencies
 # celery crashs if old celerybeat-schedule file exists and pytz is missing...

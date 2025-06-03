@@ -14,5 +14,3 @@ python3 ./manage.py createcachetable
 
 find ./static -type f -exec chmod 644 {} \;
 find ./static -type d -exec chmod 755 {} \;
-
-

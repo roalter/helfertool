@@ -604,7 +604,7 @@ INSTALLED_APPS = (
     "captcha",
     "ckeditor",
     "compressor",
-    "django_celery_results",
+    #"django_celery_results",
     "registration.apps.RegistrationConfig",
     "statistic.apps.StatisticConfig",
     "badges.apps.BadgesConfig",
