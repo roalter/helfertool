@@ -62,12 +62,38 @@
                 </tr>
 
                 <tr class="d-flex">
-                    <th class="col-6" scope="row">{% trans "RabbitMQ" %} </th>
+                    <th class="col-6" scope="row">{% trans "Celery Broker (RabbitMQ)" %} </th>
                     <td class="col-6 text-break">
                         {% if celery_broker_ok %}
                             <em class="fas fa-check"></em>
                         {% else %}
                             <em class="fas fa-times text-danger"></em>
+                        {% endif %}
+                    </td>
+                </tr>
+
+                <tr class="d-flex">
+                    <th class="col-6" scope="row">{% trans "Celery Backend (Redis)" %} </th>
+                    <td class="col-6 text-break">
+                        {% if celery_backend_ok %}
+                            <em class="fas fa-check"></em>
+                        {% else %}
+                            <em class="fas fa-times text-danger"></em>
+                        {% endif %}
+                    </td>
+                </tr>
+
+                <tr class="d-flex">
+                    <th class="col-6" scope="row">{% trans "OIDC" %} </th>
+                    <td class="col-6 text-break">
+                        {% if oidc_configured %}
+                            {% if oidc_ok %}
+                                <em class="fas fa-check"></em>
+                            {% else %}
+                                <em class="fas fa-times text-danger"></em>
+                            {% endif %}
+                        {% else %}
+                            <em class="fas fa-minus"></em>
                         {% endif %}
                     </td>
                 </tr>

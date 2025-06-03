@@ -70,6 +70,13 @@ def check(request):
     except kombu.exceptions.OperationalError:
         celery_broker_ok = False
 
+    celery_backend_ok = True
+    try:
+        celery_conn = kombu.Connection(settings.CELERY_RESULT_BACKEND)
+        celery_conn.ensure_connection(max_retries=1)
+    except kombu.exceptions.OperationalError:
+        celery_backend_ok = False
+
     # ldap
     if "django_auth_ldap.backend.LDAPBackend" in settings.AUTHENTICATION_BACKENDS:
         ldap_configured = True
@@ -82,6 +89,12 @@ def check(request):
     else:
         ldap_configured = False
         ldap_ok = False
+
+    # oidc
+    if "helfertool.oidc.CustomOIDCAuthenticationBackend" in settings.AUTHENTICATION_BACKENDS:
+        oidc_configured = True
+    else:
+        oidc_configured=  False
 
     # headers
     header_host = request.headers.get("host")
@@ -97,8 +110,11 @@ def check(request):
         "mail_imap_configured": mail_imap_configured,
         "mail_imap_ok": mail_imap_ok,
         "celery_broker_ok": celery_broker_ok,
+        "celery_backend_ok": celery_backend_ok,
         "ldap_configured": ldap_configured,
+        "oidc_configured": oidc_configured,
         "ldap_ok": ldap_ok,
+        "oidc_ok": oidc_configured,
         "header_host": header_host,
         "header_x_forwarded_for": header_x_forwarded_for,
         "header_x_forwarded_proto": header_x_forwarded_proto,
