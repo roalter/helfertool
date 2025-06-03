@@ -5,12 +5,6 @@ networks:
 x-tool: &backend
   restart: unless-stopped
   env_file: .env
-  environment:
-    - REDIS_URI=${REDIS_URI}
-    - RABBITMQ_URI=${RABBITMQ_URI}
-    - DATABASE_URI=${DATABASE_URI}
-    - DEBUG=1
-    - DJANGO_ALLOWED_HOSTS=${DJANGO_ALLOWED_HOSTS}
   image: helfertool-ng:latest
   build:
     context: ..
