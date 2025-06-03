@@ -587,7 +587,7 @@ INSTALLED_APPS = (
     "django_prose_editor",
     "captcha",
     "compressor",
-    "django_celery_results",
+    #"django_celery_results",
     "registration.apps.RegistrationConfig",
     "statistic.apps.StatisticConfig",
     "badges.apps.BadgesConfig",

@@ -5,4 +5,4 @@ set -o pipefail
 set -o nounset
 
 cd "$LOCATION"
-python3 ./manage.py $*
+exec python3 ./manage.py $*
