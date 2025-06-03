@@ -43,11 +43,11 @@ HELFERTOOL_VERSION = get_version(BASE_DIR / "version.txt")
 HELFERTOOL_CONTAINER_VERSION = None  # will be set in settings_container.py
 
 # directories for static and media files (overwritten in settings_container.py)
-STATIC_ROOT = build_path(dict_get(config, "static", "files", "static"), BASE_DIR)
-MEDIA_ROOT = build_path(dict_get(config, "media", "files", "media"), BASE_DIR)
+STATIC_ROOT = os.environ.get("STATIC_ROOT", BASE_DIR / ".." / "static")
+MEDIA_ROOT = os.environ.get("MEDIA_ROOT", BASE_DIR / ".." / "media")
 
 # directory for temporary files like badges, file uploads (overwritten in settings_container.py)
-TMP_ROOT = build_path(dict_get(config, "/tmp", "files", "tmp"), BASE_DIR)
+TMP_ROOT = os.environ.get("TEMP_ROOT", "/tmp")
 
 STATIC_URL = "/static/"
 MEDIA_URL = "/media/"
@@ -119,9 +119,8 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 # rabbitmq
 
-CELERY_BROKER_URL = os.environ.get("RABBITMQ_URI", None)
-
-CELERY_RESULT_BACKEND = "django-db"
+CELERY_BROKER_URL = os.environ.get("RABBITMQ_URI", "redis://localhost:6379/0")
+CELERY_RESULT_BACKEND = os.environ.get("REDIS_URI", "redis://localhost:6379/0")
 CELERY_RESULT_EXTENDED = True
 CELERY_BROKER_POOL_LIMIT = None
 CELERY_BROKER_CONNECTION_RETRY_ON_STARTUP = True
@@ -324,7 +323,7 @@ AUTH_PASSWORD_VALIDATORS = [
     {
         "NAME": "django.contrib.auth.password_validation.MinimumLengthValidator",
         "OPTIONS": {
-            "min_length": dict_get(config, 12, "security", "password_length"),
+            "min_length": int(os.environ.get("SECURITY_PASSWORD_LENGTH", 12)),
         },
     },
     {
@@ -339,8 +338,8 @@ AUTH_PASSWORD_VALIDATORS = [
 AXES_LOCKOUT_PARAMETERS = ["username"]
 AXES_LOCK_OUT_AT_FAILURE = True
 
-AXES_FAILURE_LIMIT = dict_get(config, 5, "security", "lockout", "limit")
-AXES_COOLOFF_TIME = lambda request: timedelta(minutes=dict_get(config, 10, "security", "lockout", "time"))
+AXES_FAILURE_LIMIT = int(os.environ.get("SECURITY_AXES_LOCKOUT_LIMT", 5))
+AXES_COOLOFF_TIME = lambda request: timedelta(minutes=int(os.environ.get("SECURITY_AXES_LOCKOUT_TIME", 10)))
 
 AXES_LOCKOUT_TEMPLATE = "helfertool/login_banned.html"
 AXES_DISABLE_ACCESS_LOG = True
@@ -350,13 +349,13 @@ if OIDC_CUSTOM_PROVIDER_NAME is not None:
 # security
 DEBUG = os.environ.get("DEBUG", "no").lower() in ["yes", "1", "true", "on"]
 SECRET_KEY = os.environ.get("SECRET_KEY", "CHANGEME")
-ALLOWED_HOSTS = os.environ.get("DJANGO_ALLOWED_HOSTS", "").split()
+ALLOWED_HOSTS = os.environ.get("DJANGO_ALLOWED_HOSTS", "localhost 0.0.0.0").split()
 
-CAPTCHAS_NEWSLETTER = dict_get(config, False, "security", "captchas", "newsletter")
-CAPTCHAS_REGISTRATION = dict_get(config, False, "security", "captchas", "registration")
+CAPTCHAS_NEWSLETTER = os.environ.get("SECURITY_CAPTCHAS_NEWSLETTER", "0").lower() in ["true", "yes", "on", "1"]
+CAPTCHAS_REGISTRATION = os.environ.get("SECURITY_CAPTCHAS_REGISTRATION", "0").lower() in ["true", "yes", "on", "1"]
 
 # use X-Forwarded-Proto header to determine if https is used (overwritten in settings_container.py)
-if dict_get(config, False, "security", "behind_proxy"):
+if os.environ.get("SECURITY_PROXY_FORWARD", "0").lower() in ["true", "yes", "on", "1"]:
     SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 
 # password hashers: use scrypt instead of PBKDF2
