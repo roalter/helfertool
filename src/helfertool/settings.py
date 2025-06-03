@@ -4,50 +4,57 @@ Django settings for Helfertool.
 
 import os
 import re
-import socket
 import sys
-import yaml
 
 from django.utils.translation import gettext_lazy as _
 
 from datetime import timedelta
 from pathlib import Path
 
-from .utils import dict_get, build_path, get_version, pg_trgm_installed
+from .utils import build_path, get_version, pg_trgm_installed
+
+
+def _enabled(var, default_result="0"):
+    return os.environ.get(var, default_result).lower() in ["1", "on", "yes", "true", "enabled"]
+
+
+def _has(var):
+    if var not in os.environ:
+        return False
+    return os.environ.get(var) != ""
+
+
+def _get(var, default_value=None):
+    result = os.environ.get(var, default_value)
+    if result == "":
+        result = None
+    return result
+
+
+def _get_int(var, default_value=0):
+    return int(_get(var, str(default_value)))
+
+
+def _get_float(var, default_value=0.0):
+    return float(_get(var, str(default_value)))
+    
 
 # import josepy, otherwise the oidc module does not work properly...
 import josepy
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-# import configuration file
-config_file = os.environ.get("HELFERTOOL_CONFIG_FILE", BASE_DIR / "helfertool.yaml")
-
-try:
-    with open(config_file, "r") as f:
-        config = yaml.load(f, Loader=yaml.SafeLoader)
-except FileNotFoundError:
-    print("Configuration file not found: {}".format(config_file))
-    sys.exit(1)
-except IOError:
-    print("Cannot read configuration file: {}".format(config_file))
-    sys.exit(1)
-except yaml.parser.ParserError as e:
-    print("Syntax error in configuration file:")
-    print()
-    print(e)
-    sys.exit(1)
-
 # versioning
 HELFERTOOL_VERSION = get_version(BASE_DIR / "version.txt")
 HELFERTOOL_CONTAINER_VERSION = None  # will be set in settings_container.py
 
 # directories for static and media files (overwritten in settings_container.py)
-STATIC_ROOT = os.environ.get("STATIC_ROOT", BASE_DIR / ".." / "static")
-MEDIA_ROOT = os.environ.get("MEDIA_ROOT", BASE_DIR / ".." / "media")
+STATIC_ROOT = _get("STATIC_ROOT", BASE_DIR / ".." / "static")
+MEDIA_ROOT = _get("MEDIA_ROOT", BASE_DIR / ".." / "media")
+BADGES_ROOT = _get("BADGES_ROOT", BASE_DIR / ".." / "badges")
 
 # directory for temporary files like badges, file uploads (overwritten in settings_container.py)
-TMP_ROOT = os.environ.get("TEMP_ROOT", "/tmp")
+TMP_ROOT = _get("TEMP_ROOT", "/tmp")
 
 STATIC_URL = "/static/"
 MEDIA_URL = "/media/"
@@ -58,11 +65,11 @@ FILE_UPLOAD_DIRECTORY_PERMISSIONS = 0o750
 FILE_UPLOAD_TEMP_DIR = TMP_ROOT
 
 # internationalization
-LANGUAGE_CODE = dict_get(config, "de", "language", "default")
+LANGUAGE_CODE = _get("LANGUAGE_DEFAULT", "de")
 
-TIME_ZONE = dict_get(config, "Europe/Berlin", "language", "timezone")
+TIME_ZONE = _get("LANGUAGE_TIMEZONE", "Europe/Berlin")
 
-LANGUAGE_SINGLELANGUAGE = dict_get(config, False, "language", "singlelanguage")
+LANGUAGE_SINGLELANGUAGE = _enabled("LANGUAGE_SINGLE")
 
 if LANGUAGE_SINGLELANGUAGE:
     if LANGUAGE_CODE == "de":
@@ -81,7 +88,8 @@ else:
 USE_I18N = True
 USE_TZ = True
 
-DEFAULT_COUNTRY = os.environ.get("DEFAULT_COUNTRY", "de")
+DEFAULT_COUNTRY = _get("LANGUAGE_DEFAULT_COUNTRY", "de")
+
 
 # database
 def generate_database(connection_string: str):
@@ -114,13 +122,13 @@ def generate_database(connection_string: str):
     )
 
 
-DATABASES = dict(default=generate_database(os.environ.get("DATABASE_URI", "sqlite3://BASE_DIR/database.sqlite3")))
+DATABASES = dict(default=generate_database(_get("DATABASE_URI", "sqlite3://BASE_DIR/database.sqlite3")))
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 # rabbitmq
 
-CELERY_BROKER_URL = os.environ.get("RABBITMQ_URI", "redis://localhost:6379/0")
-CELERY_RESULT_BACKEND = os.environ.get("REDIS_URI", "redis://localhost:6379/0")
+CELERY_BROKER_URL = _get("CELERY_BROKER_URI", "redis://localhost:6379/0")
+CELERY_RESULT_BACKEND = _get("CELERY_BACKEND_URI", "redis://localhost:6379/0")
 CELERY_RESULT_EXTENDED = True
 CELERY_BROKER_POOL_LIMIT = None
 CELERY_BROKER_CONNECTION_RETRY_ON_STARTUP = True
@@ -144,29 +152,29 @@ CACHES = {
 }
 
 # mail
-if "MAIL_OUTGOING_SERVER" in os.environ:
+if _has("MAIL_OUTGOING_SERVER"):
     # send
-    EMAIL_HOST = os.environ.get("MAIL_OUTGOING_SERVER")
-    EMAIL_PORT = int(os.environ.get("MAIL_OUTGOING_PORT", 25))
-    EMAIL_HOST_USER = os.environ.get("MAIL_OUTGOING_USERNAME", None)
-    EMAIL_HOST_PASSWORD = os.environ.get("MAIL_OUTGOING_PASSWORD", None)
-    EMAIL_USE_SSL = os.environ.get("MAIL_OUTGOING_USE_SSL", "0").lower() in ["1", "yes", "on", "true"]
-    EMAIL_USE_TLS = os.environ.get("MAIL_OUTGOING_USE_TLS", "0").lower() in ["1", "yes", "on", "true"]
+    EMAIL_HOST = _get("MAIL_OUTGOING_SERVER")
+    EMAIL_PORT = _get_int("MAIL_OUTGOING_PORT", 25)
+    EMAIL_HOST_USER = _get("MAIL_OUTGOING_USERNAME", None)
+    EMAIL_HOST_PASSWORD = _get("MAIL_OUTGOING_PASSWORD", None)
+    EMAIL_USE_SSL = _enabled("MAIL_OUTGOING_USE_SSL")
+    EMAIL_USE_TLS = _enabled("MAIL_OUTGOING_USE_TLS")
 
     if EMAIL_USE_SSL and EMAIL_USE_TLS:
         print("Mail settings for sending invalid: TLS and STARTTLS are mutually exclusive")
         sys.exit(1)
 
     # receive
-    RECEIVE_EMAIL_HOST = os.environ.get("MAIL_INCOMING_SERVER")
-    RECEIVE_EMAIL_PORT = os.environ.get("MAIL_INCOMING_PORT")
-    RECEIVE_EMAIL_HOST_USER = os.environ.get("MAIL_INCOMING_USERNAME")
-    RECEIVE_EMAIL_HOST_PASSWORD = os.environ.get("MAIL_INCOMING_PASSWORD")
-    RECEIVE_EMAIL_USE_SSL = os.environ.get("MAIL_INCOMING_USE_SSL", "0").lower() in ["1", "yes", "on", "true"]
-    RECEIVE_EMAIL_USE_TLS = os.environ.get("MAIL_INCOMING_USE_TLS", "0").lower() in ["1", "yes", "on", "true"]
+    RECEIVE_EMAIL_HOST = _get("MAIL_INCOMING_SERVER")
+    RECEIVE_EMAIL_PORT = _get_int("MAIL_INCOMING_PORT", 143)
+    RECEIVE_EMAIL_HOST_USER = _get("MAIL_INCOMING_USERNAME")
+    RECEIVE_EMAIL_HOST_PASSWORD = _get("MAIL_INCOMING_PASSWORD")
+    RECEIVE_EMAIL_USE_SSL = _enabled("MAIL_INCOMING_USE_SSL")
+    RECEIVE_EMAIL_USE_TLS = _enabled("MAIL_INCOMING_USE_TLS")
 
-    RECEIVE_EMAIL_FOLDER = os.environ.get("MAIL_INCOMING_FOLDER", "INBOX")
-    RECEIVE_INTERVAL = int(os.environ.get("MAIL_INCOMING_CHECK_INTERVAL", 300))
+    RECEIVE_EMAIL_FOLDER = _get("MAIL_INCOMING_FOLDER", "INBOX")
+    RECEIVE_INTERVAL = _get_int("MAIL_INCOMING_CHECK_INTERVAL", 300)
 
     if RECEIVE_EMAIL_USE_SSL and RECEIVE_EMAIL_USE_TLS:
         print("Mail settings for receiving invalid: TLS and STARTTLS are mutually exclusive")
@@ -182,46 +190,45 @@ else:
 
 # sender of all mails (because of SPF, DKIM, DMARC)
 # the display name defaults to the mail address
-EMAIL_SENDER_ADDRESS = os.environ.get("MAIL_SENDER_ADDRESS",  "helfertool@localhost")
-EMAIL_SENDER_NAME = os.environ.get("MAIL_SENDER_NAME", EMAIL_SENDER_ADDRESS)
+EMAIL_SENDER_ADDRESS = _get("MAIL_SENDER_ADDRESS", "helfertool@localhost")
+EMAIL_SENDER_NAME = _get("MAIL_SENDER_NAME", EMAIL_SENDER_ADDRESS)
 
 SERVER_EMAIL = EMAIL_SENDER_ADDRESS  # for error messages
 
 # forward mails that were not handled automatically to this address
 # the display name defaults to the mail address
-FORWARD_UNHANDLED_ADDRESS = os.environ.get("MAIL_FORWARD_UNHANDLED_ADDRESS",  None)
-FORWARD_UNHANDLED_NAME = os.environ.get("MAIL_FORWARD_UNHANDLED_NAME", None)
+FORWARD_UNHANDLED_ADDRESS = _get("MAIL_FORWARD_UNHANDLED_ADDRESS", None)
+FORWARD_UNHANDLED_NAME = _get("MAIL_FORWARD_UNHANDLED_NAME", None)
 
 # newsletter: number of mails sent during one connection and time between
-MAIL_BATCH_SIZE = int(os.environ.get("MAIL_BATCH_SIZE", 200))
-MAIL_BATCH_GAP = int(os.environ.get("MAIL_BATCH_GAP", 5))
+MAIL_BATCH_SIZE = _get_int("MAIL_BATCH_SIZE", 200)
+MAIL_BATCH_GAP = _get_int("MAIL_BATCH_GAP", 5)
 
 # authentication
 LOGIN_URL = "/login/"
 LOGIN_REDIRECT_URL = "/manage/account/check/"
 LOGOUT_REDIRECT_URL = "/"
 
-LOCAL_USER_CHAR = os.environ.get("AUTH_LOCAL_USER_CHAR", None)
+LOCAL_USER_CHAR = _get("AUTH_LOCAL_USER_CHAR", None)
 
 # django auth backends
 AUTHENTICATION_BACKENDS = [
     "axes.backends.AxesBackend",
 ]
 
-
 # LDAP
-if "AUTH_LDAP_SERVER_URI" in os.environ:
+if _has("AUTH_LDAP_SERVER_URI"):
     import django_auth_ldap.config
     import ldap
 
     # server address and authentication
-    AUTH_LDAP_SERVER_URI = os.environ.get("AUTH_LDAP_SERVER_URI")
-    AUTH_LDAP_BIND_DN = os.environ.get("AUTH_LDAP_BIND_DN", None)
-    AUTH_LDAP_BIND_PASSWORD = os.environ.get("AUTH_LDAP_BIND_PASSWORD", None)
+    AUTH_LDAP_SERVER_URI = _get("AUTH_LDAP_SERVER_URI")
+    AUTH_LDAP_BIND_DN = _get("AUTH_LDAP_BIND_DN", None)
+    AUTH_LDAP_BIND_PASSWORD = _get("AUTH_LDAP_BIND_PASSWORD", None)
 
     # user search
-    user_search_base = os.environ.get("AUTH_LDAP_SEARCH_BASE", None)
-    user_search_filter = os.environ.get("AUTH_LDAP_SEARCH_FILTER", None)
+    user_search_base = _get("AUTH_LDAP_SEARCH_BASE", None)
+    user_search_filter = _get("AUTH_LDAP_SEARCH_FILTER", None)
 
     if user_search_base is not None and user_search_filter is not None:
         AUTH_LDAP_USER_SEARCH = django_auth_ldap.config.LDAPSearch(
@@ -230,65 +237,65 @@ if "AUTH_LDAP_SERVER_URI" in os.environ:
             user_search_filter,
         )
 
-    AUTH_LDAP_USER_DN_TEMPLATE = os.enviorn.get("AUTH_LDAP_USER_DN_TEMPLATE", None)
+    AUTH_LDAP_USER_DN_TEMPLATE = _get("AUTH_LDAP_USER_DN_TEMPLATE", None)
 
     # user schema
     AUTH_LDAP_USER_ATTR_MAP = {
-        "first_name": os.environ.get("AUTH_LDAP_MAP_FIRSTNAME", "givenName"),
-        "last_name": os.environ.get("AUTH_LDAP_MAP_LASTNAME", "sn"),
-        "email": os.envion.get("AUTH_LDAP_MAP_EMAIL", "mail")
+        "first_name": _get("AUTH_LDAP_MAP_FIRSTNAME", "givenName"),
+        "last_name": _get("AUTH_LDAP_MAP_LASTNAME", "sn"),
+        "email": _get("AUTH_LDAP_MAP_EMAIL", "mail")
     }
 
     # group schema
-    group_type_name = os.environ.get("AUTH_LDAP_GROUP_TYPE", "GroupOfNamesType")
+    group_type_name = _get("AUTH_LDAP_GROUP_TYPE", "GroupOfNamesType")
     AUTH_LDAP_GROUP_TYPE = getattr(django_auth_ldap.config, group_type_name)()
 
     AUTH_LDAP_GROUP_SEARCH = django_auth_ldap.config.LDAPSearch(
-        os.environ.get("AUTH_LDAP_GROUP_BASE_DN", None),
+        _get("AUTH_LDAP_GROUP_BASE_DN", None),
         ldap.SCOPE_SUBTREE,  # pylint: disable=E1101
-        "(objectClass={})".format(os.environ.get("AUTH_LDAP_GROUP_OBJECT", "groupOfNames")),
+        "(objectClass={})".format(_get("AUTH_LDAP_GROUP_OBJECT", "groupOfNames")),
     )
     AUTH_LDAP_MIRROR_GROUPS = False
 
     # permissions based on groups
     AUTH_LDAP_USER_FLAGS_BY_GROUP = {}
 
-    ldap_group_login = os.environ.get("AUTH_LDAP_LOGIN_BY_GROUPS", None)
+    ldap_group_login = _get("AUTH_LDAP_LOGIN_BY_GROUPS", None)
     if ldap_group_login:
         AUTH_LDAP_USER_FLAGS_BY_GROUP["is_active"] = ldap_group_login
 
-    ldap_group_admin = os.environ.get("AUTH_LDAP_LOGIN_BY_ADMINS", None)
+    ldap_group_admin = _get("AUTH_LDAP_LOGIN_BY_ADMINS", None)
     if ldap_group_admin:
         AUTH_LDAP_USER_FLAGS_BY_GROUP["is_staff"] = ldap_group_admin
         AUTH_LDAP_USER_FLAGS_BY_GROUP["is_superuser"] = ldap_group_admin
 
     AUTHENTICATION_BACKENDS.append("django_auth_ldap.backend.LDAPBackend")
 
-       
 # OpenID Connect
 OIDC_CUSTOM_PROVIDER_NAME = None  # used to check if enabled or not
 OIDC_CUSTOM_LOGOUT_ENDPOINT = None
 OIDC_CUSTOM_LOGOUT_REDIRECT_PARAMTER = None
 oidc_config = False
+oidc_renew_check_interval = 0
 
-if "AUTH_OIDC_PROVIDER" in os.environ:
+if _has("AUTH_OIDC_PROVIDER"):
     # name for identity provider displayed on login page (custom paremeter, not from lib)
-    OIDC_CUSTOM_PROVIDER_NAME = os.environ.get("AUTH_OIDC_PROVIDER", "OpenID Connect")
+    OIDC_CUSTOM_PROVIDER_NAME = _get("AUTH_OIDC_PROVIDER", "OpenID Connect")
 
     # provider
     OIDC_RP_SIGN_ALGO = "RS256"
-    OIDC_OP_JWKS_ENDPOINT = os.environ.get("AUTH_OIDC_JWKS_URL", None)
+    OIDC_OP_JWKS_ENDPOINT = _get("AUTH_OIDC_JWKS_URL", None)
 
-    OIDC_RP_CLIENT_ID = os.environ.get("AUTH_OIDC_CLIENT_ID", None)
-    OIDC_RP_CLIENT_SECRET = os.environ.get("AUTH_OIDC_CLIENT_SECRET", None)
+    OIDC_RP_CLIENT_ID = _get("AUTH_OIDC_CLIENT_ID", None)
+    OIDC_RP_CLIENT_SECRET = _get("AUTH_OIDC_CLIENT_SECRET", None)
 
-    OIDC_OP_AUTHORIZATION_ENDPOINT = os.environ.get("AUTH_OIDC_AUTHORIZATION_ENDPOINT", None)
-    OIDC_OP_TOKEN_ENDPOINT = os.environ.get("AUTH_OIDC_TOKEN_ENDPOINT", None)
-    OIDC_OP_USER_ENDPOINT = os.environ.get("AUTH_OIDC_USER_ENDPOINT", None)
+    OIDC_OP_AUTHORIZATION_ENDPOINT = _get("AUTH_OIDC_AUTHORIZATION_ENDPOINT", None)
+    OIDC_OP_TOKEN_ENDPOINT = _get("AUTH_OIDC_TOKEN_ENDPOINT", None)
+    OIDC_OP_USER_ENDPOINT = _get("AUTH_OIDC_USER_ENDPOINT", None)
 
-    OIDC_RP_SCOPES = os.environ.get("AUTH_OIDC_SCOPES", "openid email profile")
+    OIDC_RP_SCOPES = _get("AUTH_OIDC_SCOPES", "openid email profile")
 
-    oidc_renew_check_interval = int(os.environ.get("AUTH_OIDC_RENEW_INTERVAL", 0))
+    oidc_renew_check_interval = _get_int("AUTH_OIDC_RENEW_INTERVAL", 0)
     if oidc_renew_check_interval > 0:
         OIDC_RENEW_ID_TOKEN_EXPIRY_SECONDS = oidc_renew_check_interval * 60
 
@@ -299,16 +306,16 @@ if "AUTH_OIDC_PROVIDER" in os.environ:
     LOGIN_REDIRECT_URL_FAILURE = "/oidc/failed"
     ALLOW_LOGOUT_GET_METHOD = True
 
-    oidc_logout = dict_get(oidc_config, None, "provider", "logout")
+    oidc_logout = _get("AUTH_OIDC_LOGOUT", None)
     if oidc_logout:
-        OIDC_CUSTOM_LOGOUT_ENDPOINT = dict_get(oidc_logout, None, "endpoint")
-        OIDC_CUSTOM_LOGOUT_REDIRECT_PARAMTER = dict_get(oidc_logout, None, "redirect_parameter")
+        OIDC_CUSTOM_LOGOUT_ENDPOINT = _get("AUTH_OIDC_LOGOUT_ENDPOINT", None)
+        OIDC_CUSTOM_LOGOUT_REDIRECT_PARAMTER = _get("AUTH_OIDC_LOGOUT_REDIRECT_PARAMETER", None)
 
         OIDC_OP_LOGOUT_URL_METHOD = "helfertool.oidc.custom_oidc_logout"
 
     # claims for is_active and is_admin
-    OIDC_CUSTOM_CLAIM_LOGIN = os.environ.get("AUTH_OIDC_CLAIMS_USER")
-    OIDC_CUSTOM_CLAIM_ADMIN = os.environ.get("UATH_OIDC_CLAIMS_ADMIN")
+    OIDC_CUSTOM_CLAIM_LOGIN = _get("AUTH_OIDC_CLAIMS_USER")
+    OIDC_CUSTOM_CLAIM_ADMIN = _get("AUTH_OIDC_CLAIMS_ADMIN")
 
     AUTHENTICATION_BACKENDS.append("helfertool.oidc.CustomOIDCAuthenticationBackend")
     oidc_config = True
@@ -323,7 +330,7 @@ AUTH_PASSWORD_VALIDATORS = [
     {
         "NAME": "django.contrib.auth.password_validation.MinimumLengthValidator",
         "OPTIONS": {
-            "min_length": int(os.environ.get("SECURITY_PASSWORD_LENGTH", 12)),
+            "min_length": _get_int("SECURITY_PASSWORD_LENGTH", 12),
         },
     },
     {
@@ -338,8 +345,8 @@ AUTH_PASSWORD_VALIDATORS = [
 AXES_LOCKOUT_PARAMETERS = ["username"]
 AXES_LOCK_OUT_AT_FAILURE = True
 
-AXES_FAILURE_LIMIT = int(os.environ.get("SECURITY_AXES_LOCKOUT_LIMT", 5))
-AXES_COOLOFF_TIME = lambda request: timedelta(minutes=int(os.environ.get("SECURITY_AXES_LOCKOUT_TIME", 10)))
+AXES_FAILURE_LIMIT = _get_int("SECURITY_AXES_LOCKOUT_LIMT", 5)
+AXES_COOLOFF_TIME = lambda request: timedelta(minutes=_get_int("SECURITY_AXES_LOCKOUT_TIME", 10))
 
 AXES_LOCKOUT_TEMPLATE = "helfertool/login_banned.html"
 AXES_DISABLE_ACCESS_LOG = True
@@ -347,15 +354,15 @@ if OIDC_CUSTOM_PROVIDER_NAME is not None:
     AXES_WHITELIST_CALLABLE = "helfertool.oidc.axes_whitelist"
 
 # security
-DEBUG = os.environ.get("DEBUG", "no").lower() in ["yes", "1", "true", "on"]
-SECRET_KEY = os.environ.get("SECRET_KEY", "CHANGEME")
-ALLOWED_HOSTS = os.environ.get("DJANGO_ALLOWED_HOSTS", "localhost 0.0.0.0").split()
+DEBUG = _enabled("DEBUG")
+SECRET_KEY = _get("SECRET_KEY", "CHANGEME")
+ALLOWED_HOSTS = _get("DJANGO_ALLOWED_HOSTS", "localhost 0.0.0.0").split()
 
-CAPTCHAS_NEWSLETTER = os.environ.get("SECURITY_CAPTCHAS_NEWSLETTER", "0").lower() in ["true", "yes", "on", "1"]
-CAPTCHAS_REGISTRATION = os.environ.get("SECURITY_CAPTCHAS_REGISTRATION", "0").lower() in ["true", "yes", "on", "1"]
+CAPTCHAS_NEWSLETTER = _enabled("SECURITY_CAPTCHAS_NEWSLETTER")
+CAPTCHAS_REGISTRATION = _enabled("SECURITY_CAPTCHAS_REGISTRATION")
 
 # use X-Forwarded-Proto header to determine if https is used (overwritten in settings_container.py)
-if os.environ.get("SECURITY_PROXY_FORWARD", "0").lower() in ["true", "yes", "on", "1"]:
+if _enabled("SECURITY_PROXY_FORWARD"):
     SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 
 # password hashers: use scrypt instead of PBKDF2
@@ -380,7 +387,7 @@ SESSION_EXPIRE_AT_BROWSER_CLOSE = True
 SESSION_COOKIE_HTTPONLY = True
 # OIDC with foreign TLDs is blocked by SAMESITE=Strict, so make this configurable
 
-if oidc_config and dict_get(oidc_config, False, "provider", "thirdparty_domain"):
+if _enabled("AUTH_OIDC_THIRDPARTY_DOMAIN"):
     SESSION_COOKIE_SAMESITE = "Lax"
 else:
     SESSION_COOKIE_SAMESITE = "Strict"
@@ -391,8 +398,6 @@ if not DEBUG:
     LANGUAGE_COOKIE_SECURE = True
 
 # logging
-ADMINS = [(mail, mail) for mail in dict_get(config, [], "logging", "mails")]
-
 LOGGING = {
     "version": 1,
     "disable_existing_loggers": False,
@@ -436,84 +441,59 @@ LOGGING = {
     },
 }
 
-# enable database logging
-DATABASE_LOGGING = dict_get(config, True, "logging", "database")
-if DATABASE_LOGGING:
-    LOGGING["loggers"]["helfertool"]["handlers"].append("helfertool_database")
-
-# enable syslog if configured
-# additional syslog handler is added in settings_container.py
-syslog_config = dict_get(config, None, "logging", "syslog")
-if syslog_config:
-    protocol = dict_get(syslog_config, "udp", "protocol")
-    if protocol not in ["tcp", "udp"]:
-        print('Invalid syslog port: "tcp" or "udp" expected')
-        sys.exit(1)
-
-    LOGGING["handlers"]["helfertool_syslog"] = {
-        "class": "logging.handlers.SysLogHandler",
-        "formatter": "helfertool_syslog",
-        "level": "INFO",
-        "facility": dict_get(syslog_config, "local7", "facility"),
-        "address": (dict_get(syslog_config, "localhost", "server"), dict_get(syslog_config, 514, "port")),
-        "socktype": socket.SOCK_DGRAM if protocol == "udp" else socket.SOCK_STREAM,
-    }
-
-    LOGGING["loggers"]["helfertool"]["handlers"].append("helfertool_syslog")
-
 # Helfertool features
-FEATURES_NEWSLETTER = bool(dict_get(config, True, "features", "newsletter"))
-FEATURES_BADGES = bool(dict_get(config, True, "features", "badges"))
-FEATURES_GIFTS = bool(dict_get(config, True, "features", "gifts"))
-FEATURES_PREREQUISITES = bool(dict_get(config, True, "features", "prerequisites"))
-FEATURES_INVENTORY = bool(dict_get(config, True, "features", "inventory"))
-FEATURES_CORONA = bool(dict_get(config, True, "features", "corona"))
+FEATURES_NEWSLETTER = _enabled("FEATURE_NEWSLETTER", "1")
+FEATURES_BADGES = _enabled("FEATURE_BADGES", "1")
+FEATURES_GIFTS = _enabled("FEATURE_GIFTS", "1")
+FEATURES_PREREQUISITES = _enabled("FEATURE_PREREQUISITES", "1")
+FEATURES_INVENTORY = _enabled("FEATURE_INVENTORY", "1")
+FEATURES_CORONA = _enabled("FEATURE_CORONA", "1")
 
 # Display Options
 # Maximum years of events to be displayed by default on the main page
-EVENTS_LAST_YEARS = int(dict_get(config, 2, "customization", "display", "events_last_years"))
+EVENTS_LAST_YEARS = _get_int("CUSTOM_EVENTS_HISTORY", "2")
 if EVENTS_LAST_YEARS < 0:
     print("events_show_years must be positive or 0")
     sys.exit(1)
 
 # announcement on every page
-ANNOUNCEMENT_TEXT = dict_get(config, None, "announcement")
+ANNOUNCEMENT_TEXT = _get("CUSTOM_ANNOUNCEMENT_TEXT", None)
 
 # title for all pages
-PAGE_TITLE = dict_get(config, "Helfertool", "customization", "title")
+PAGE_TITLE = _get("CUSTOM_TITLE", "Helfertool")
 
 # external URLs
-PRIVACY_URL = dict_get(config, "https://app.helfertool.org/datenschutz/", "customization", "urls", "privacy")
-IMPRINT_URL = dict_get(config, "https://app.helfertool.org/impressum/", "customization", "urls", "imprint")
-DOCS_URL = dict_get(config, "https://docs.helfertool.org", "customization", "urls", "docs")
+PRIVACY_URL = _get("CUSTOM_PRIVACY_URL", "https://app.helfertool.org/datenschutz/")
+IMPRINT_URL = _get("CUSTOM_IMPRINT_URL", "https://app.helfertool.org/impressum/")
+DOCS_URL = _get("CUSTOM_DOCS_URL", "https://docs.helfertool.org")
 WEBSITE_URL = "https://www.helfertool.org"
 
 # mail address for "About this software" page and support requests
-CONTACT_MAIL = dict_get(config, "helfertool@localhost", "customization", "contact_address")
+CONTACT_MAIL = _get("CUSTOM_CONTACT_ADDRESS", "helfertool@localhost")
 
 # similarity search for postgresql
-SEARCH_SIMILARITY = dict_get(config, 0.3, "customization", "search", "similarity")
-SEARCH_SIMILARITY_DISABLED = dict_get(config, False, "customization", "search", "disable_similarity")
+SEARCH_SIMILARITY_DISABLED = not _enabled("SEARCH_SIMILARITY")
+SEARCH_SIMILARITY = 0.3
 
-if SEARCH_SIMILARITY_DISABLED is False:
+if not SEARCH_SIMILARITY_DISABLED:
     # it only works on postgresql when pg_trgm is there, so check this. otherwise, disable
     if "postgresql" in DATABASES["default"]["ENGINE"]:
         if not pg_trgm_installed():
             SEARCH_SIMILARITY_DISABLED = True
     else:
         SEARCH_SIMILARITY_DISABLED = True
+    if not SEARCH_SIMILARITY_DISABLED:
+        SEARCH_SIMILARITY = _get_float("SEARCH_SIMILARITY", 0.3)
 
 # badges
-BADGE_PDFLATEX = dict_get(config, "/usr/bin/pdflatex", "badges", "pdflatex")
-BADGE_PHOTO_MAX_SIZE = dict_get(config, 1000, "badges", "photo_max_size")
-BADGE_SPECIAL_MAX = dict_get(config, 50, "badges", "special_badges_max")
+BADGE_PDFLATEX = _get("BADGE_PDFLATEX", "/usr/bin/pdflatex")
+BADGE_PHOTO_MAX_SIZE = _get_int("BADGE_PHOTO_MAX_SIZE", 1000)
+BADGE_SPECIAL_MAX = _get_int("BADGE_SPECIAL_MAX_SIZE", 50)
 
-BADGE_PDF_TIMEOUT = 60 * dict_get(config, 30, "badges", "pdf_timeout")
-BADGE_RM_DELAY = 60 * dict_get(config, 2, "badges", "rm_delay")
+BADGE_PDF_TIMEOUT = 60 * _get_int("BADGE_PDF_TIMEOUT", 30)
+BADGE_RM_DELAY = 60 * _get_int("BADGE_RM_DELAY", 60)
 
-BADGE_DEFAULT_TEMPLATE = build_path(
-    dict_get(config, "src/badges/latextemplate/badge.tex", "badges", "template"), BASE_DIR
-)
+BADGE_DEFAULT_TEMPLATE = BADGES_ROOT
 
 # copy generated latex code for badges to this file, disable with None
 if DEBUG:
@@ -521,10 +501,10 @@ if DEBUG:
 else:
     BADGE_TEMPLATE_DEBUG_FILE = None
 
-BADGE_LANGUAGE_CODE = dict_get(config, "de", "language", "badges")
+BADGE_LANGUAGE_CODE = _get("BADGE_LANGUAGE_CODE", "de")
 
 # newsletter
-NEWS_SUBSCRIBE_DEADLINE = dict_get(config, 3, "subscribe_deadline", "newsletter")
+NEWS_SUBSCRIBE_DEADLINE = _get_int("NEWSLETTER_DEADLINE", 3)
 
 # internal group names
 GROUP_ADDUSER = "registration_adduser"
