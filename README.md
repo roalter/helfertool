@@ -16,9 +16,18 @@ in our documentation.
 
 # Environment for development
 
-Please have a look at the
+<s>Please have a look at the
 [development guide](https://docs.helfertool.org/development/environment.html)
-in our documentation.
+in our documentation.</s>
+
+Local development is done by starting it up.
+
+- uv venv
+- uv pip install -r requirements.txt -r requirements_prod.txt
+- uv python manage.py collectstatics
+- uv python manage.py compress
+- uv python manage.py migrate
+- uv python service.py start
 
 # Issues
 
