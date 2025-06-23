@@ -118,6 +118,41 @@ def template_privacy(request):
 
 @login_required
 @never_cache
+def template_imprint(request):
+    # must be superuser
+    if not request.user.is_superuser:
+        return nopermission(request)
+
+    # forms
+    all_forms = []
+
+    # texts for registration
+    obj_imprint, c = HTMLSetting.objects.get_or_create(key="imprint")
+    form_imprint = HTMLSettingForm(request.POST or None, instance=obj_imprint, prefix="imprint")
+
+    # check all forms and save
+    if form_imprint.is_valid():
+        form_imprint.save()
+
+        logger.info(
+            "settings changed",
+            extra={
+                "changed": "templates_imprint",
+                "user": request.user,
+            },
+        )
+
+        return redirect("toolsettings:templates")
+
+    # render page
+    context = {
+        "form_imprint": form_imprint,
+    }
+    return render(request, "toolsettings/template_imprint.html", context)
+
+
+@login_required
+@never_cache
 def template_login(request):
     # must be superuser
     if not request.user.is_superuser:

@@ -1,0 +1,9 @@
+{% extends "helfertool/base.html" %}
+{% load i18n django_bootstrap5 static toolsettings %}
+
+{% block content %}
+    <h1>{% trans "Privacy Guidelines" %}</h1>
+
+    {% htmlsetting "privacy" %}
+
+{% endblock %}
