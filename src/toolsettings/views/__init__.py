@@ -1,5 +1,6 @@
 from .templates import (
     templates,
+    template_imprint,
     template_about,
     template_privacy,
     template_login,
