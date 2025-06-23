@@ -1,3 +1,5 @@
+import datetime
+
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import render, redirect
@@ -27,7 +29,9 @@ def edit_shift(request, event_url_name, job_pk, shift_pk=None):
         return nopermission(request)
 
     # form
-    form = ShiftForm(request.POST or None, instance=shift, job=job)
+    time_pre = datetime.datetime.combine(event.date, datetime.datetime.min.time())
+    form = ShiftForm(request.POST or None, instance=shift, job=job,
+                     initial={"begin": time_pre, "end": time_pre + datetime.timedelta(hours=1)})
 
     if form.is_valid():
         shift = form.save()
