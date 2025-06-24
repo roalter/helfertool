@@ -260,7 +260,8 @@ class Helper(models.Model):
                 "event": event,
                 "validate_url": validate_url,
                 "registered_url": registered_url,
-                "contact_mail": settings.CONTACT_MAIL,
+                #"contact_mail": settings.CONTACT_MAIL,
+                "contact_mail": event.email,
             }
         )
 
