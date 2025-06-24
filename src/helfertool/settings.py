@@ -360,6 +360,7 @@ if OIDC_CUSTOM_PROVIDER_NAME is not None:
 DEBUG = _enabled("DEBUG")
 SECRET_KEY = _get("SECRET_KEY", "CHANGEME")
 ALLOWED_HOSTS = _get("DJANGO_ALLOWED_HOSTS", "localhost 0.0.0.0").split()
+CSRF_TRUSTED_ORIGINS = [f"https://{x}" for x in ALLOWED_HOSTS]
 
 CAPTCHAS_NEWSLETTER = _enabled("SECURITY_CAPTCHAS_NEWSLETTER")
 CAPTCHAS_PASSWORD_RESET = _enabled("SECURITY_CAPTCHAS_PASSWORD_RESET")
@@ -384,8 +385,8 @@ LANGUAGE_COOKIE_HTTPONLY = True
 LANGUAGE_COOKIE_SAMESITE = "Lax"
 LANGUAGE_COOKIE_AGE = 31449600
 
-CSRF_COOKIE_HTTPONLY = True
-CSRF_COOKIE_SAMESITE = "Strict"
+CSRF_COOKIE_HTTPONLY = False
+CSRF_COOKIE_SAMESITE = "Lax"
 
 SESSION_EXPIRE_AT_BROWSER_CLOSE = True
 SESSION_COOKIE_HTTPONLY = True
@@ -466,8 +467,8 @@ ANNOUNCEMENT_TEXT = _get("CUSTOM_ANNOUNCEMENT_TEXT", None)
 PAGE_TITLE = _get("CUSTOM_TITLE", "Helfertool")
 
 # external URLs
-PRIVACY_URL = _get("CUSTOM_PRIVACY_URL", "https://app.helfertool.org/datenschutz/")
-IMPRINT_URL = _get("CUSTOM_IMPRINT_URL", "https://app.helfertool.org/impressum/")
+PRIVACY_URL = _get("CUSTOM_PRIVACY_URL", "/help/privacy/")
+IMPRINT_URL = _get("CUSTOM_IMPRINT_URL", "/help/imprint/")
 DOCS_URL = _get("CUSTOM_DOCS_URL", "https://docs.helfertool.org")
 WEBSITE_URL = "https://www.helfertool.org"
 
