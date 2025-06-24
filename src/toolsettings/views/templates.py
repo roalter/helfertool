@@ -123,12 +123,9 @@ def template_imprint(request):
     if not request.user.is_superuser:
         return nopermission(request)
 
-    # forms
-    all_forms = []
-
     # texts for registration
     obj_imprint, c = HTMLSetting.objects.get_or_create(key="imprint")
-    form_imprint = HTMLSettingForm(request.POST or None, instance=obj_imprint, prefix="imprint")
+    form_imprint = HTMLSettingForm(request.POST or None, instance=obj_imprint)
 
     # check all forms and save
     if form_imprint.is_valid():
