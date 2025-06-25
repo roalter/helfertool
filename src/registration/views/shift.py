@@ -28,10 +28,20 @@ def edit_shift(request, event_url_name, job_pk, shift_pk=None):
     if not has_access(request.user, job, ACCESS_JOB_EDIT):
         return nopermission(request)
 
-    # form
-    time_pre = datetime.datetime.combine(event.date, datetime.datetime.min.time())
-    form = ShiftForm(request.POST or None, instance=shift, job=job,
-                     initial={"begin": time_pre, "end": time_pre + datetime.timedelta(hours=1)})
+    # for
+    data = None
+    if shift is None or shift.begin is None:
+        last = job.shift_set.last()
+        if last is None:
+            time_pre = datetime.datetime.combine(event.date, datetime.datetime.min.time())
+            count = 0
+        else:
+            time_pre = last.end
+            count = last.number
+
+        data = {"begin": time_pre, "end": time_pre + datetime.timedelta(hours=1), "number": count }
+
+    form = ShiftForm(request.POST or None, instance=shift, job=job, initial=data)
 
     if form.is_valid():
         shift = form.save()
