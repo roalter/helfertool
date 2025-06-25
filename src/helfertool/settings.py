@@ -663,3 +663,5 @@ COMPRESS_PRECOMPILERS = (("text/x-scss", "django_libsass.SassCompiler"),)
 ROOT_URLCONF = "helfertool.urls"
 
 WSGI_APPLICATION = "helfertool.wsgi.application"
+
+SILENCED_SYSTEM_CHECKS = ["ckeditor.W001"]
