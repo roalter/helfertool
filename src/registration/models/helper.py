@@ -26,6 +26,20 @@ import logging
 logger = logging.getLogger("helfertool.registration")
 
 
+class EmailMessageNG(EmailMessage):
+    def __init__(self, subject="", body="", from_email=None, to=None, bcc=None, connection=None, attachments=None,
+                 headers=None, cc=None, reply_to=None, sender=None):
+
+        super().__init__(subject, body, from_email, to, bcc, connection, attachments, headers, cc, reply_to)
+        self.sender = sender
+
+    def message(self):
+        result = super().message()
+        if self.sender is not None and self.sender != self.from_email:
+            result["Sender"] = self.sender
+        return result
+
+
 class Helper(models.Model):
     """Helper in one or more shifts.
 
@@ -277,17 +291,22 @@ class Helper(models.Model):
         # header for mail tracking
         tracking_header = new_tracking_registration(self)
 
+        sender = settings.EMAIL_SENDER_ADDRESS
+        if settings.EMAIL_SENDER_NAME != sender:
+            sender = f"{settings.EMAIL_SENDER_NAME} <{sender}>"
+
         # sent it and handle errors
-        mail = EmailMessage(
+        mail = EmailMessageNG(
             subject,
             text,
-            settings.EMAIL_SENDER_ADDRESS,
+            sender,
             [
                 self.email,
             ],  # to
             reply_to=[
                 event.email,
             ],
+            sender=event.email,
             headers=tracking_header,
         )
 
