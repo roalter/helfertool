@@ -47,6 +47,10 @@ def table_of_helpers(elements, helpers, event):
     spaces = [
         6,
     ]
+    if event.ask_grade:
+        header.append(par(_("Grade")))
+        spaces.append(2.5)
+
     if event.ask_shirt:
         header.append(par(_("T-shirt")))
         spaces.append(2.5)
@@ -61,6 +65,8 @@ def table_of_helpers(elements, helpers, event):
         tmp = [
             par("%s %s" % (helper.firstname, helper.surname)),
         ]
+        if event.ask_grade:
+            tmp.append(par(helper.grade))
         if event.ask_shirt:
             tmp.append(par(helper.get_shirt_display()))
         tmp.append(par(helper.comment))

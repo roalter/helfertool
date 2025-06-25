@@ -14,7 +14,9 @@ Parameters:
         <table class="table" aria-label="{% trans "Personal data of helper" %}">
             <tr>
                 <th scope="row" class="w-50">{% trans "Name" %}: </th>
-                <td class="w-50 text-break">{{ helper.firstname }} {{ helper.surname }}</td>
+                <td class="w-50 text-break">{{ helper.firstname }} {{ helper.surname }}
+                    {% if helper.grade %}({{ helper.grade }}){% endif %}
+                </td>
             </tr>
 
             <tr>
