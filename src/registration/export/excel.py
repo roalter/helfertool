@@ -95,6 +95,10 @@ def xlsx(buffer, event, jobs, date, include_sensitive):
         # header
         worksheet.write(0, column.next(), _("First name"), bold)
         worksheet.write(0, column.next(), _("Surname"), bold)
+
+        if event.ask_grade:
+            worksheet.write(0, column.next(), _("Grade"), bold)
+
         worksheet.write(0, column.next(), _("E-Mail"), bold)
         worksheet.set_column(0, column.get(), 30)
 
@@ -156,6 +160,8 @@ def add_helpers(worksheet, row, column, event, job, helpers, multiple_shifts_for
 
         worksheet.write(row.get(), column.next(), escape(helper.firstname), cell_format)
         worksheet.write(row.get(), column.next(), escape(helper.surname), cell_format)
+        if event.ask_grade:
+            worksheet.write(row.get(), column.next(), escape(helper.grade), cell_format)
         worksheet.write(row.get(), column.next(), escape(helper.email), cell_format)
         if event.ask_phone and include_sensitive:
             worksheet.write(row.get(), column.next(), escape(helper.phone), cell_format)

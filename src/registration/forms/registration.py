@@ -27,6 +27,7 @@ class RegisterForm(forms.ModelForm):
             "firstname",
             "surname",
             "email",
+            "grade",
             "phone",
             "shirt",
             "nutrition",
@@ -66,6 +67,9 @@ class RegisterForm(forms.ModelForm):
         # remove field for nutrition?
         if not self.event.ask_nutrition:
             self.fields.pop("nutrition")
+
+        if not self.event.ask_grade:
+            self.fields.pop("grade")
 
         # remove field for privacy statement?
         if self.is_internal:

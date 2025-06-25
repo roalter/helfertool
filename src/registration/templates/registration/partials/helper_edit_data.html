@@ -3,17 +3,31 @@
 {# personal data of helper, which can also be changed in public forms #}
 
 <div class="row">
-    <div class="col-lg-6">
-        {% bootstrap_field form.firstname layout="floating" %}
-    </div>
+    {% if form.grade %}
+        <div class="col-lg-5">
+            {% bootstrap_field form.firstname layout="floating" %}
+        </div>
 
-    <div class="col-lg-6">
-        {% bootstrap_field form.surname layout="floating" %}
-    </div>
+        <div class="col-lg-5">
+            {% bootstrap_field form.surname layout="floating" %}
+        </div>
 
+        <div class="col-lg-2">
+            {% bootstrap_field form.grade layout="floating" %}
+        </div>
+    {% else %}
+        <div class="col-lg-6">
+            {% bootstrap_field form.firstname layout="floating" %}
+        </div>
+
+        <div class="col-lg-6">
+            {% bootstrap_field form.surname layout="floating" %}
+        </div>
+    {% endif %}
     <div class="col-lg-6">
         {% bootstrap_field form.email layout="floating" %}
     </div>
+
 
     {% if form.phone %}
         <div class="col-lg-6">
@@ -26,6 +40,7 @@
                 {% bootstrap_field form.shirt layout="floating" %}
         </div>
     {% endif %}
+
 
     {% if form.nutrition %}
         <div class="col-lg-6">

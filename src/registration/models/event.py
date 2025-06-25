@@ -225,6 +225,11 @@ class Event(models.Model):
         verbose_name=_("Ask for T-shirt size"),
     )
 
+    ask_grade = models.BooleanField(
+        default=True,
+        verbose_name=_("Ask for grade"),
+    )
+
     ask_nutrition = models.BooleanField(
         default=True,
         verbose_name=_("Ask for preferred nutrition"),
