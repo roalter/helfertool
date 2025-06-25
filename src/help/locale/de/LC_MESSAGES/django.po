@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: \n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2022-07-25 19:30+0200\n"
+"POT-Creation-Date: 2025-06-26 00:04+0200\n"
 "PO-Revision-Date: \n"
 "Last-Translator: \n"
 "Language-Team: \n"
@@ -74,6 +74,14 @@ msgstr ""
 #: help/templates/help/create_issue.html:22
 msgid "Send"
 msgstr "Senden"
+
+#: help/templates/help/imprint.html:5
+msgid "Imprint"
+msgstr "Impressum"
+
+#: help/templates/help/privacy.html:5
+msgid "Privacy Guidelines"
+msgstr "Datenschutz Richtlinien"
 
 #: help/views.py:20
 msgid "The issue was saved and sent to the admins."

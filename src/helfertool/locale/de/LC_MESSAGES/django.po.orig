@@ -7,7 +7,11 @@ msgid ""
 msgstr ""
 "Project-Id-Version: \n"
 "Report-Msgid-Bugs-To: \n"
+<<<<<<< HEAD
 "POT-Creation-Date: 2026-01-25 15:26+0100\n"
+=======
+"POT-Creation-Date: 2025-06-26 00:04+0200\n"
+>>>>>>> 051481df (feat: update German translations and add new localized strings)
 "PO-Revision-Date: \n"
 "Last-Translator: \n"
 "Language-Team: \n"
@@ -300,17 +304,27 @@ msgctxt "Admin interface"
 msgid "Administration"
 msgstr "Verwaltung"
 
+<<<<<<< HEAD
 #: helfertool/templates/helfertool/base.html:86
 #: helfertool/templates/helfertool/base.html:94
 msgid "Logout"
 msgstr "Logout"
 
 #: helfertool/templates/helfertool/base.html:100
+=======
+#: helfertool/templates/helfertool/base.html:85
+#: helfertool/templates/helfertool/base.html:90
+msgid "Logout"
+msgstr "Logout"
+
+#: helfertool/templates/helfertool/base.html:95
+>>>>>>> 051481df (feat: update German translations and add new localized strings)
 #: helfertool/templates/helfertool/login.html:5
 #: helfertool/templates/helfertool/login.html:34
 msgid "Login"
 msgstr "Login"
 
+<<<<<<< HEAD
 #: helfertool/templates/helfertool/base.html:127
 msgid "Privacy"
 msgstr "Datenschutz"
@@ -320,6 +334,17 @@ msgid "Imprint"
 msgstr "Impressum"
 
 #: helfertool/templates/helfertool/base.html:131
+=======
+#: helfertool/templates/helfertool/base.html:122
+msgid "Privacy"
+msgstr "Datenschutz"
+
+#: helfertool/templates/helfertool/base.html:124
+msgid "Imprint"
+msgstr "Impressum"
+
+#: helfertool/templates/helfertool/base.html:126
+>>>>>>> 051481df (feat: update German translations and add new localized strings)
 msgid "About this software"
 msgstr "Über diese Software"
 
