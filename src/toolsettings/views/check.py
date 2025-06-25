@@ -12,7 +12,6 @@ from mail.receive.receiver import MailReceiver
 from ..models import HTMLSetting, TextSetting
 
 import kombu
-import ldap
 import socket
 
 
@@ -81,6 +80,7 @@ def check(request):
     if "django_auth_ldap.backend.LDAPBackend" in settings.AUTHENTICATION_BACKENDS:
         ldap_configured = True
         ldap_ok = True
+        import ldap
         try:
             ldap_conn = ldap.initialize(settings.AUTH_LDAP_SERVER_URI)
             ldap_conn.simple_bind_s(settings.AUTH_LDAP_BIND_DN, settings.AUTH_LDAP_BIND_PASSWORD)
