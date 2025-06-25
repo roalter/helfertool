@@ -125,6 +125,12 @@ class Helper(models.Model):
         verbose_name=_("Mobile phone"),
     )
 
+    grade = models.CharField(
+        max_length=20,
+        blank=True,
+        verbose_name=_("Grade or Department"),
+    )
+
     comment = models.CharField(
         max_length=200,
         blank=True,
